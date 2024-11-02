@@ -1,43 +1,81 @@
 ---
-title: "第一次作业你的报告题目"
-CJKmainfont: Songti SC
-author: "your name"
+title: "第一次作业-探索武汉二手房市场"
+author: "赵 炜"
 date: "`r Sys.Date()`"
+fontsize: 11pt
+CJKmainfont: Microsoft YaHei
+documentclass: ctexart
 output:
-  pdf_document:
-    latex_engine: xelatex
-  word_document:
-    toc: yes
   html_document:
     code_folding: show
     fig_caption: yes
-    fig_width: 10
-    highlight: tango
+    fig.retina: 2
+    highlight: zenburn
     number_sections: yes
     theme: cosmo
     toc: yes
+  # word_document:
+  #   toc: yes
+  #   df_print: tibble
+  rticles::ctex:
+    includes:
+      in_header: preamble.tex
+    toc: true
+    toc_depth: 3
+  pdf_document:
+    latex_engine: xelatex
 ---
-```{r setup, include = FALSE,echo = FALSE}
-knitr::opts_chunk$set(echo = FALSE,error = FALSE, warning = FALSE, message = FALSE,
-                      out.width = "100%", split = FALSE, fig.align = "center")
-#load library
-library(tidyverse)
-library(kableExtra)
-library(lubridate)
-library(scales)
-library(plotly)
-library(patchwork)
-library(ggrepel)
+
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	error = FALSE,
+	out.width = "100%", 
+	fig.showtext = TRUE,
+	fig.align = "center",
+	comment = "#>",
+	df_print = "tibble",
+	paged.print = FALSE,
+	split = FALSE
+)
+showtext::showtext_auto()
 ```
 
-# 你的主要发现
 
-1. 发现1
 
-1. 发现2
+```{r message=FALSE, warning=FALSE}
+#load library
+library(tidyverse)
+# library(kableExtra)
+# library(lubridate)
+# library(scales)
+# library(plotly)
+# library(patchwork)
+# library(ggrepel)
+
+# 画图默认使用黑体
+# 如下语句可以解决画图中的中文显示问题
+# 这里family设置成你系统中的中文字体名。
+old <- theme_set(theme(text=element_text(family="Microsoft YaHei",size=14))+
+                   theme_minimal())
+# 还原默认主题
+# theme_set(old)
+```
+
+
+
+# 主要发现
+
+1. 发现1：武汉二手房总价的平均值在140万元，在70万元到170万元之间的房子最多;房价均价在1.4万元每平方米，大部分集中在1万到1.8万之间。
+
+1. 发现2：武汉不同区域差异房价明显，水果湖区域房子总价和每平方的均价都很高，尤其是板楼价格很坚挺；华科大与关山大道板块的板塔结合的楼挂牌较多，而且总价与每平方的均价都很贵，不愧是“武汉宇宙中心”。
   
-1. 发现3
-    
+1. 发现3：房子周边交通的便利性也影响着房价，靠近地铁的房子明显要比不靠近的贵，平均贵约2000元/平方米。
+
+
 
 # 数据介绍
 
@@ -51,30 +89,49 @@ library(ggrepel)
 
  **说明：**数据仅用于教学；由于不清楚链家数据的展示规则，因此数据可能并不是武汉二手房市场的随机抽样，结论很可能有很大的偏差，甚至可能是错误的。
     
-```{r}
+```{r paged.print=FALSE}
 # 载入数据和预处理
 
-lj<- read_csv("/Users/jameschen/Documents/02_Teaching/12_quantitative_thinking_R/data/2023-09-12_cleaned.csv")
+lj<- read_csv("data/2023-09-12_cleaned.csv")
+lj
+```
+
+
+```{r include=FALSE}
 # EDA ---------------------------------------------------------------------
 
-## 如下语句可以解决画图中的中文显示问题，当然你可以用showtext包来解决
+# 看字符数据质量及取值情况
+lj %>% count(property_region) %>% arrange(desc(n))
+lj %>% count(property_name) %>% arrange(desc(n))
+lj %>% count(property_style) %>% arrange(desc(n))
+lj %>% count(property_height)
+lj %>% count(decoration) %>% arrange(desc(n))
+lj %>% count(bedrooms)
+lj %>% count(near_subway)
+lj %>% count(if_2y)
+lj %>% count(has_key)
+lj %>% count(vr)
 
-theme_set(theme(text = element_text(family="Songti SC",size = 10))) #这里family设置成你系统中的中文字体名。
+# 将一些有价值的字符型变量，转化成factor
+lj_new <- lj %>%
+  mutate(
+    property_region = factor(property_region),
+    property_style = factor(property_style),
+    property_height = factor(property_height, levels = c("低", "中", "高")),
+    decoration = factor(decoration),
+    bedrooms = as_factor(bedrooms),
+    near_subway = factor(near_subway, levels = c("近地铁")),
+    if_2y = factor(if_2y),
+    has_key = factor(has_key, levels = c("随时看房"))
+  )
 
-# 做一些数据预处理，比如把字符型变成factor。
-
+lj_new
 ```
 
 # 数据概览
 
-数据表（lj)共包括`r names(lj)`等`r ncol(lj)`个变量,共`r nrow(lj)`行。表的前10行示例如下：
+数据表（lj)共包括`r names(lj_new)`等`r ncol(lj_new)`个变量,共`r nrow(lj_new)`行。表的前10行示例如下：
 
-```{r}
-lj %>% 
-  head(10) %>%
-  kable(caption = "武汉链家二手房") %>% 
-  kable_styling()
-```
 
 各变量的简短信息：
 ```{r}
@@ -88,67 +145,303 @@ summary(lj)
 
 可以看到：
 
-- 直观结论1
+- 直观结论1: 50%多的房子的总价在95万到188万之间，房子均价在1万每平方到1.8万每平方，建筑面积在 95平方到117平方；
 
-- 直观结论2
+- 直观结论2: 精装房最多,大部分是3房，约60%是板楼；
 
-- ...
+- 近一半的房子没有填写是否满2年；近一半的房子不靠近地铁。
 
 # 探索性分析
 
-## 变量1的数值描述与图形
+## 房子总价的数值描述与图形
+
+房子总价统计指标：
+
+```{r}
+summary(lj_new$price_ttl)
+
+```
+使用IQR的方法，剔除极值后，房价的分布情况如下图所示：
+
+```{r include=FALSE}
+lj_price_ttl <- lj_new %>% 
+  filter(price_ttl >= quantile(price_ttl, 0.25) - 1.5 * IQR(price_ttl),
+         price_ttl <= quantile(price_ttl, 0.75) + 1.5 * IQR(price_ttl))
+lj_price_ttl
+```
+
+房子总价分布图：
+
+```{r}
+ggplot(lj_price_ttl, aes(x = price_ttl)) +
+  geom_histogram(binwidth = 20,
+                 color = 'grey',
+                 alpha = 0.7) +
+  scale_x_continuous(breaks = seq(10, 340, by = 20)) +
+  labs(title = "房子总价(万元)分布情况") +
+  geom_vline(xintercept = mean(lj_price_ttl$price_ttl),
+             color = "red") +
+  xlab("房子总价(万元)")
+
+# #密度曲线
+# ggplot(lj_price_ttl, aes(x=price_ttl, y = after_stat(density)))+
+#   geom_histogram(binwidth = 50,color= 'grey', alpha = 0.7)+
+#   scale_x_continuous(breaks = seq(10,1400,by=50))+
+#   geom_density(position = "stack",alpha = 0.5)+
+#   geom_vline(xintercept = mean(lj_price_ttl$price_ttl),color = "red")+
+#   labs(title = "房子总价分布-密度曲线")+
+#   theme(text=element_text(size=16))
+
+
+```
+
+剔除异常值后发现：
+
+- 发现1： 房子总价的平均值在140万元，在70万元到170万元之间的房子最多；
+
+- 发现2： 房子总价的分布呈现右偏，长尾；
+
+
+## 房价的数值描述与图形
+
+房价(元/平方米) 统计指标：
+
+```{r}
+# 汇总
+summary(lj_price_ttl$price_sqm)
+
+```
+可以看到房价的差异还是比较大的，下面通过直方图可以看看房价的分布情况。
+
+
+房价(元/平方米)分布直方图：
+
+```{r}
+ggplot(lj_price_ttl, aes(x = price_sqm)) +
+  geom_histogram(binwidth = 2000,
+                 color = 'grey',
+                 alpha = 0.7) +
+  scale_x_continuous(n.breaks = 10,
+                     labels = scales::label_number_auto()) +
+  labs(title = "房价(元/平方米)分布情况") +
+  geom_vline(xintercept = mean(lj_price_ttl$price_sqm),
+             color = "red") +
+  xlab("房价(元/平方米)")
+ 
+
+# #密度曲线
+# ggplot(lj_new, aes(x=price_sqm, y = after_stat(density)))+
+#   geom_histogram(color= 'grey', alpha = 0.7)+
+#   geom_density(position = "stack",alpha = 0.5)+
+#   geom_vline(xintercept = mean(lj_new$price_sqm),color = "red")+
+#   theme_minimal()+
+#   labs(title = "房价(元/平方米)分布-密度曲线")+
+#   theme(text=element_text(size=16))
+  
+
+```
+
+从图中可以发现：
+
+- 1. 房价均价在1.4万元每平方米，大部分集中在1万到1.8万之间
+
+- 2. 房价(元/平方米)的分布接近正态分布，略右偏，呈现长尾趋势，即存在相对较少的豪宅出售。
+
+
+## 探索房价与区域的关系
+
+
+房子位置对房价的影响很大，特别是繁华地带的，下面将分析武汉不同的区域的房价差异。
+
+
+```{r}
+
+region_data <-
+  lj_price_ttl %>%
+  # 去掉异常区域
+  filter(!(property_region %in% c("随时看房", "随时看"))) %>%
+  group_by(property_region) %>%
+  summarise(avg_price_ttl = mean(price_ttl),
+            avg_price_sqm = mean(price_sqm)) %>%
+  slice_max(order_by = avg_price_ttl, n = 20) %>%
+  # 只选取区域，房价相关变量
+  dplyr::select(property_region, avg_price_ttl, avg_price_sqm) 
+
+
+# 画图
+ggplot(region_data,
+       aes(x = property_region, y = avg_price_ttl, fill = avg_price_sqm)) +
+  geom_col(aes(x = reorder(property_region, avg_price_ttl))) +
+  coord_flip() +
+  labs(title = "房子总价(万元)平均值前20的区域",
+       subtitle = "颜色越浅表示房子均价(元/平方米)越高",
+       fill = "元/平方米") +
+  xlab("武汉各区域") +
+  ylab("区域房子总价(万元)的均值")
+```
+
 
 发现：
 
-- 发现1
+- 水果湖区域房子总价高，并且均价也高；中北路房子总价高，但是均价相对较低，说明该区域二手房的面积相对较大。
 
-- 发现2
+- `街道可`(口)和三阳路的两个区域的房子均价要相对较高，相同总价情况下，房子的建筑面积可能要小一些
 
-## 变量2的数值描述与图形
+
+## 房子类型与房价的关系
+
+房屋的结构（板楼、塔楼）与是否精装修势必会影响到房价，下面分析一下这两个因素与房价的关系。
+
+
+房屋结构与房价关系：
+```{r}
+lj_price_ttl %>% 
+  filter(property_style != "暂无数据") %>% 
+  group_by(property_style) %>% 
+  summarise(avg_price_ttl = mean(price_ttl),
+            avg_price_sqm = mean(price_sqm),
+            n = n()) %>% 
+  # 过滤异常
+  # 画图
+  ggplot(aes(x = property_style, y = avg_price_ttl, fill = avg_price_sqm)) +
+  geom_col(aes(x = reorder(property_style, -avg_price_ttl))) +
+  labs(title = "不同房屋结构的房子总价(万元)的平均值",
+       subtitle = "颜色越浅表示房子均价(元/平方米)越高",
+       fill = "元/平方米"
+       )+
+  xlab("不同房屋结构") +
+  ylab("房子总价(万元)的平均值")
+  
+```
+
+下面，进一步探索房子总价最高的前是个区域的不同房屋结构的在价格上的差异：
+
+前十个地区为：`r as.character(region_data$property_region[1:10])` 。
+
+```{r}
+region_style_top_10 <-
+  lj_price_ttl %>%
+  filter(property_style != "暂无数据") %>%
+  group_by(property_region, property_style) %>%
+  summarise(
+    avg_price_ttl = mean(price_ttl),
+    avg_price_sqm = mean(price_sqm),
+    n = n()
+  ) %>%
+  filter(property_region %in% as.character(region_data$property_region[1:10]))
+
+ggplot(data = region_style_top_10) +
+  geom_point(aes(
+    x = reorder(property_region, -avg_price_ttl),
+    y = property_style,
+    size = avg_price_ttl,
+    color = avg_price_sqm
+  )) +
+  scale_color_viridis_c() +
+  labs(title = "房价最高前十区域的不同房屋结构单价的差异",
+       subtitle = "颜色表示房子均价(元/平方米)，点大小表示房子总价",
+       color = "元/平方米",
+       size = "房子总价(万元)"
+       )+
+  xlab("武汉前十区域") +
+  ylab("")+
+  theme(axis.text.x = element_text(angle = 315)) # 角度为45°，
+  
+```
+
 
 发现：
 
-- 发现1
+- 1. 水果湖区域，板楼的单价非常高，超过3万元每平方米；
+- 2. 新南湖区域，板楼总价与单价均高于塔楼；
+- 3. 板塔结合的房屋结构，在华科大与关山大道区域总价及单价均高于其他类型的房屋结构
 
-- 发现2
+详细看一下关山大道的房子情况：
 
-## 变量...的数值描述与图形
+```{r include=FALSE}
+lj_price_ttl %>%
+  filter(property_region == "关山大道") %>%
+  dplyr::select(property_style,property_name,price_ttl,price_sqm,property_t_height,building_area) %>% 
+  slice_max(price_ttl,n=10) %>% 
+  knitr::kable(caption = "关山大道房子情况，取房子总价的前十")
 
-发现：
+```
+可以看出关山大道板塔结合的房子，所在的楼栋总楼层较高，单价远高于平均值1.4W。这与该地域繁华程度较高，土地资源稀缺的事实相呼应。
 
-- 发现1
 
-- 发现2
+## 交通便利度与房价的关系
 
-## 探索问题1
+一般认为离地铁近的房子，交通便利度高，房价会比没有地铁的高，下面基于这份数据探索一下。
 
-发现：
 
-- 发现1
+先看一下离地铁的房子情况：
+```{r}
+lj_price_ttl %>% 
+  group_by(near_subway) %>%
+  summarise(
+    avg_price_ttl = mean(price_ttl),
+    avg_price_sqm = mean(price_sqm),
+    n = n()
+  ) %>% 
+  knitr::kable()
+  
+```
+有近一半的房子靠近地铁（去掉了房价过高数据）, 近地铁房子总价及均价都要高于非近地铁的房子。
 
-- 发现2
 
-## 探索问题2
+下面结合房屋类型看一下
+```{r}
+df_subway <-
+  lj_price_ttl %>%
+  filter(property_style != "暂无数据") %>%
+  group_by(near_subway,property_style) %>%
+  summarise(
+    avg_price_ttl = mean(price_ttl),
+    avg_price_sqm = mean(price_sqm),
+    n = n()
+  )
 
-发现：
+ggplot(df_subway, aes(x = near_subway, y = avg_price_ttl))+
+  geom_col(aes(fill= property_style),position = "dodge")+
+  labs(title = "不同房屋结构与是否靠近地铁",
+       subtitle = "房屋总价(万元)的对比",
+       fill = "房屋结构")+
+  xlab("")+
+  ylab("房屋总价(万元)平均值")
+  
+  
+```
 
-- 发现1
+发现： 是否靠近地铁，只有对于平房没有影响，仔细看一下平房数据：
 
-- 发现2
+```{r echo=FALSE}
+lj_price_ttl %>%
+    filter(property_style == "平房") %>% 
+  dplyr::select(property_name:price_sqm,building_area,decoration,property_t_height,property_style,near_subway) %>% 
+  knitr::kable()
+```
+发现数据可能存在填写问题，平房应该没有33高，6层高的教委宿舍是有可能，所以该类型的房子没有分析的必要性。 
 
-## 探索问题3
 
-发现：
+总体上看，靠近地铁的房子，不论是总价还是单价均高于不靠近地铁的房子。
 
-- 发现1
 
-- 发现2
 
 ---
 
+```{r include=FALSE}
+showtext::showtext_auto(FALSE)
+```
+
+
 # 发现总结
 
-用1-3段话总结你的发现。
 
+
+1. 武汉二手房总价的平均值在140万元，在70万元到170万元之间的房子最多;房价均价在1.4万元每平方米，大部分集中在1万到1.8万之间。相比其他一线新一线城市，武汉整体的房价水平是偏低的，普通人努努力还是可以够得着的。
+
+1. 武汉不同区域差异房价明显，水果湖区域房子总价和每平方的均价都很高，尤其是板楼价格很坚挺；华科大与关山大道板块的板塔结合的楼挂牌较多，而且总价与每平方的均价都很贵，不愧是“武汉宇宙中心”。 自住需求的，买房还是尽量避开这些区域，溢价过高。当然如果是投资，还是需要在热门区域投资，成交量大，容易出手。
+  
+1. 买房靠近地铁，将来交易的时候，平均要贵约2000元/平方米，所以尽量购买能靠近地铁房子，保值一些。
 
 
